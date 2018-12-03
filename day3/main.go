@@ -81,11 +81,15 @@ type Fabric struct {
 	Width  int
 	Height int
 	Grid   [][][]*Claim
+
+	// Track claims which have an overlap
+	OverlapClaims map[int]bool
 }
 
 func InitFabric(width, height int) *Fabric {
 	f := Fabric{Width: width, Height: height}
 	f.Grid = make([][][]*Claim, height)
+	f.OverlapClaims = make(map[int]bool)
 	for i := range f.Grid {
 		f.Grid[i] = make([][]*Claim, width)
 		for j := range f.Grid[i] {
@@ -95,9 +99,34 @@ func InitFabric(width, height int) *Fabric {
 	return &f
 }
 
+// GridHasOverlap determines whether the claim overlaps the fabric[j][i].
+// 1. If the inch has no claim, there is no overlap
+// 2. If the inch has claims other than the current ID, it has overlaps.
+func (f *Fabric) GridHasOverlap(i, j int, claim *Claim) bool {
+	if len(f.Grid[j][i]) == 0 {
+		return false
+	}
+	for _, c := range f.Grid[j][i] {
+		if c.ID != claim.ID {
+			// fmt.Println(f.Grid[j][i], claim)
+			return true
+		}
+	}
+	return false
+}
+
 func (f *Fabric) AddClaim(claim Claim) {
 	for j := claim.TopOffset; j < claim.GetBottomOffset(); j++ {
 		for i := claim.LeftOffset; i < claim.GetRightOffset(); i++ {
+			if f.GridHasOverlap(i, j, &claim) {
+				// mark current claim as overlap
+				f.OverlapClaims[claim.ID] = true
+				// ...and all the previous ones
+				for _, c := range f.Grid[j][i] {
+					f.OverlapClaims[c.ID] = true
+				}
+
+			}
 			f.Grid[j][i] = append(f.Grid[j][i], &claim)
 		}
 	}
@@ -142,5 +171,14 @@ func main() {
 	for _, c := range claims {
 		fabric.AddClaim(c)
 	}
+
+	// Part 1
 	fmt.Println(fabric.FindOverlapInches())
+
+	// Part 2
+	for _, c := range claims {
+		if !fabric.OverlapClaims[c.ID] {
+			fmt.Println(c)
+		}
+	}
 }
