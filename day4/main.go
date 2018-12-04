@@ -215,7 +215,12 @@ func main() {
 	})
 
 	lazyGuard := guards[0]
-	fmt.Println(lazyGuard.ID)
-	fmt.Println(lazyGuard.MostSleptMin())
+	fmt.Println(lazyGuard.ID * lazyGuard.MostSleptMin())
+
+	// Strategy 2: Of all guards, which guard is most frequently asleep on the same minute?
+	sort.SliceStable(guards, func(i, j int) bool {
+		return guards[i].MostSleptTimes() > guards[j].MostSleptTimes()
+	})
+	lazyGuard = guards[0]
 	fmt.Println(lazyGuard.ID * lazyGuard.MostSleptMin())
 }
