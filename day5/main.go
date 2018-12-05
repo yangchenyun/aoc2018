@@ -3,12 +3,13 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"math"
 	"sort"
 	"strings"
 
 	"github.com/golang-collections/collections/stack"
 )
+
+const caseDiff = byte('a' - 'A')
 
 func parseInput(filename string) string {
 	dat, err := ioutil.ReadFile(filename)
@@ -19,7 +20,7 @@ func parseInput(filename string) string {
 }
 
 func IsReact(c1, c2 byte) bool {
-	return int(math.Abs(float64(c1)-float64(c2))) == int('a')-int('A')
+	return c1 - caseDiff == c2 || c1 + caseDiff == c2
 }
 
 func DoReaction(in string) string {
