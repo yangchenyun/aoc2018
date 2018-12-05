@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math"
+	"sort"
 	"strings"
 
 	"github.com/golang-collections/collections/stack"
@@ -40,10 +41,42 @@ func DoReaction(in string) string {
 	return result
 }
 
+// WithoutUnit produces a new polymer without unit.
+func WithoutUnit(polymers string, unit byte) string {
+	result := ""
+	for i := range polymers {
+		if IsReact(polymers[i], unit) || polymers[i] == unit {
+			continue
+		}
+		result += string(polymers[i])
+	}
+	return result
+}
+
+func FindUnits(polymers string) []byte {
+	seen := make(map[byte]bool)
+	polymers = strings.ToLower(polymers)
+	for i := range polymers {
+		seen[polymers[i]] = true
+	}
+	result := make([]byte, 0)
+	for k := range seen {
+		result = append(result, k)
+	}
+	return result
+}
+
 func main() {
 	polymers := parseInput("input.txt")
-        // part 1
-        fmt.Println(len(DoReaction(polymers)))
+	// part 1
+	fmt.Println(len(DoReaction(polymers)))
+
+	// part 2
+	lens := make([]int, 0)
+	for _, unit := range FindUnits(polymers) {
+		p := WithoutUnit(polymers, unit)
+		lens = append(lens, len(DoReaction(p)))
 	}
-	fmt.Println(len(polymers))
+	sort.Ints(lens)
+	fmt.Println(lens[0])
 }
