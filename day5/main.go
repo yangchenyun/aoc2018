@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math"
+	"strings"
+
+	"github.com/golang-collections/collections/stack"
 )
 
 func parseInput(filename string) string {
@@ -11,7 +14,7 @@ func parseInput(filename string) string {
 	if err != nil {
 		panic(err)
 	}
-	return string(dat)
+	return strings.Trim(string(dat), "\n")
 }
 
 func IsReact(c1, c2 byte) bool {
@@ -19,62 +22,28 @@ func IsReact(c1, c2 byte) bool {
 }
 
 func DoReaction(in string) string {
-	reacted := make(map[int]bool)
-	for i := 0; i < len(in)-2;  {
-		j := i + 1
-		if IsReact(in[i], in[j]) {
-			reacted[i] = true
-			reacted[j] = true
-
-			ii := i - 1
-			jj := j + 1
-			for {
-				if ii <= 0 || jj >= len(in) - 1 {
-					break
-				}
-
-				if IsReact(in[ii], in[jj]) {
-					reacted[ii] = true
-					reacted[jj] = true
-				} else {
-					break
-				}
-				ii--
-				jj++
-			}
-
-			i = jj // the next unit which is not reacted
-		} else {
-			i++
-		}
-	}
-
-	result := ""
-	removed := ""
-
+	stack := stack.New()
 	for i := range in {
-		if !reacted[i] {
-			result += string(in[i])
+		if stack.Len() > 0 && IsReact(stack.Peek().(byte), in[i]) {
+			stack.Pop()
 		} else {
-			removed += string(in[i])
+			stack.Push(in[i])
 		}
 	}
-	// fmt.Println(removed)
+	result := ""
+	for {
+		if stack.Len() == 0 {
+			break
+		}
+		result += string(stack.Pop().(byte))
+	}
 	return result
 }
 
 func main() {
 	polymers := parseInput("input.txt")
-	for {
-		ol := len(polymers)
-		polymers = DoReaction(polymers)
-		l := len(polymers)
-		if ol == l {
-			break
-		} else {
-			fmt.Println(l, ol)
-			// break
-		}
+        // part 1
+        fmt.Println(len(DoReaction(polymers)))
 	}
 	fmt.Println(len(polymers))
 }
