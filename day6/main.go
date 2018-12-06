@@ -48,6 +48,30 @@ type View struct {
 	SY int64
 	EX int64
 	EY int64
+	grid [][]ID
+}
+
+func InitView(coords []Coord) *View {
+	sort.SliceStable(coords, func(i, j int) bool {
+		return coords[i].X > coords[j].X
+	})
+	maxX := coords[0].X
+	minX := coords[len(coords)-1].X
+
+	sort.SliceStable(coords, func(i, j int) bool {
+		return coords[i].Y > coords[j].Y
+	})
+	maxY := coords[0].Y
+	minY := coords[len(coords)-1].Y
+
+
+	view := &View{minX, minY, maxX, maxY, nil}
+	grid := make([][]ID, view.Height())
+	for i := range grid {
+		grid[i] = make([]ID, view.Width())
+	}
+	view.grid = grid
+	return view
 }
 
 func (v *View) Width() int {
@@ -56,6 +80,33 @@ func (v *View) Width() int {
 
 func (v *View) Height() int {
 	return int(v.EY - v.SY)
+}
+
+func (v *View) EdgeIDs() map[ID]bool {
+	edgeIDs := make(map[ID]bool)
+	for i := 0; i < v.Height(); i++ {
+		edgeIDs[v.grid[i][0]] = true
+		edgeIDs[v.grid[i][v.Width()-1]] = true
+	}
+
+	for j := 0; j < v.Width(); j++ {
+		edgeIDs[v.grid[0][j]] = true
+		edgeIDs[v.grid[v.Height()-1][j]] = true
+	}
+	return edgeIDs
+}
+
+func (v *View) AreaMap() map[ID]int {
+
+	areaMap := make(map[ID]int)
+	for i := 0; i < v.Height(); i++ {
+		for j := 0; j < v.Width(); j++ {
+			if v.grid[i][j] != -1 {
+				areaMap[v.grid[i][j]]++
+			}
+		}
+	}
+	return areaMap
 }
 
 // FindCloestCoord finds the closest one, if there are more than two, return none
@@ -83,28 +134,7 @@ func FindCloestCoord(c Coord, coords []Coord) *Coord {
 	return nil
 }
 
-func main() {
-	coords := parseInput("input.txt")
-
-	sort.SliceStable(coords, func(i, j int) bool {
-		return coords[i].X > coords[j].X
-	})
-	maxX := coords[0].X
-	minX := coords[len(coords)-1].X
-
-	sort.SliceStable(coords, func(i, j int) bool {
-		return coords[i].Y > coords[j].Y
-	})
-	maxY := coords[0].Y
-	minY := coords[len(coords)-1].Y
-
-	// initialize the view
-	view := View{minX, minY, maxX, maxY}
-	grid := make([][]ID, view.Height())
-	for i := range grid {
-		grid[i] = make([]ID, view.Width())
-	}
-	// fill the view
+func FillDistances(view *View, coords []Coord) {
 	for i := 0; i < view.Height(); i++ {
 		for j := 0; j < view.Width(); j++ {
 			gridCoord := Coord{
@@ -113,41 +143,72 @@ func main() {
 			}
 			cc := FindCloestCoord(gridCoord, coords)
 			if cc != nil {
-				grid[i][j] = cc.ID
+				view.grid[i][j] = cc.ID
 			} else {
-				grid[i][j] = -1
+				view.grid[i][j] = -1
 			}
 		}
 	}
+}
 
-	// Exclude the edges
-	edgeIDs := make(map[ID]bool)
-	for i := 0; i < view.Height(); i++ {
-		edgeIDs[grid[i][0]] = true
-		edgeIDs[grid[i][view.Width()-1]] = true
+func TotalDistance(c Coord, coords []Coord) int {
+	result := 0
+	for _, cc := range coords {
+		result += ManhattanDistance(c, cc)
 	}
+	return result
+}
 
-	for j := 0; j < view.Width(); j++ {
-		edgeIDs[grid[0][j]] = true
-		edgeIDs[grid[view.Height()-1][j]] = true
-	}
-
-	// compute area for coords not touch edges
-	areaMap := make(map[ID]int)
+const IsRegion = 1
+func FillRegion(view *View, coords []Coord, maxD int) {
 	for i := 0; i < view.Height(); i++ {
 		for j := 0; j < view.Width(); j++ {
-			if grid[i][j] != -1 && !edgeIDs[grid[i][j]] {
-				areaMap[grid[i][j]]++
+			gridCoord := Coord{
+				X: view.SX + int64(j),
+				Y: view.SY + int64(i),
+			}
+			d := TotalDistance(gridCoord, coords)
+			if d < maxD {
+				view.grid[i][j] = IsRegion
 			}
 		}
 	}
+}
 
-	areas := make([]int, len(areaMap))
-	for _, area := range areaMap {
-		areas = append(areas, area)
+func RegionSize(view *View) int {
+	result := 0
+	for i := 0; i < view.Height(); i++ {
+		for j := 0; j < view.Width(); j++ {
+			if view.grid[i][j] == IsRegion {
+				result++
+			}
+		}
 	}
-	sort.Ints(areas)
+	return result
+}
+
+
+func main() {
+	coords := parseInput("input.txt")
 
 	// part 1
-	fmt.Println(areas[len(areas) - 1])
+	view := InitView(coords)
+	FillDistances(view, coords)
+	areaMap := view.AreaMap()
+
+	areas := make([]int, len(areaMap))
+	for id, area := range areaMap {
+		edgeIDs := view.EdgeIDs()
+		if !edgeIDs[id] {
+			areas = append(areas, area)
+		}
+	}
+	sort.Ints(areas)
+	fmt.Println(areas[len(areas)-1])
+
+	// // part 2
+	view = InitView(coords)
+	FillRegion(view, coords, 10000)
+	fmt.Println(RegionSize(view))
+
 }
