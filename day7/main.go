@@ -12,23 +12,25 @@ type Edge struct {
 }
 
 type Node struct {
-	Name    string
-	Depends []*Node
-	Nexts   []*Node
+	Name     string
+	Depends  []*Node
+	Nexts    []*Node
+	Seconds  int
+	FinishOn int
 }
 
 func (n *Node) String() string {
 	depends := make([]string, 0)
 	nexts := make([]string, 0)
-	for _, n := range n.Depends{
+	for _, n := range n.Depends {
 		depends = append(depends, n.Name)
 	}
 
-	for _, n := range n.Nexts{
+	for _, n := range n.Nexts {
 		nexts = append(nexts, n.Name)
 	}
-	// return fmt.Sprintf("<%s depends=%s, nexts=%v>", n.Name, depends, nexts)
-	return fmt.Sprintf("<%s>", n.Name)
+	// return fmt.Sprintf("<%s depends=%s, nexts=%v, finish=%d>", n.Name, depends, nexts, n.FinishOn)
+	return fmt.Sprintf("<%s, %d>", n.Name, n.FinishOn)
 }
 
 func parseInput() []*Node {
@@ -41,10 +43,10 @@ func parseInput() []*Node {
 			break
 		}
 		if _, ok := nodeMap[a]; !ok {
-			nodeMap[a] = &Node{a, make([]*Node, 0), make([]*Node, 0)}
+			nodeMap[a] = &Node{a, make([]*Node, 0), make([]*Node, 0), 60 + int(a[0]-'A'+1), 0}
 		}
 		if _, ok := nodeMap[b]; !ok {
-			nodeMap[b] = &Node{b, make([]*Node, 0), make([]*Node, 0)}
+			nodeMap[b] = &Node{b, make([]*Node, 0), make([]*Node, 0), 60 + int(b[0]-'A'+1), 0}
 		}
 		nodeA := nodeMap[a]
 		nodeB := nodeMap[b]
@@ -104,13 +106,34 @@ func FindNextIdx(nodes []*Node, finished []*Node) int {
 	return -1
 }
 
+// AssignWork at the time.
+func AssignWork(workers []int, now int, finish int) bool {
+	for i := range workers {
+		if workers[i] <= now {
+			workers[i] = finish
+			return true
+		}
+	}
+	return false
+}
+
+func WorkersAvailable(workers []int, time int) bool {
+	for i := range workers {
+		if workers[i] <= time {
+			return true
+		}
+	}
+	return false
+}
+
 func main() {
 	nodes := parseInput()
 	begins := FindBegins(nodes)
 	end := FindEnd(nodes)
 
 	// Part 1
-	nexts := begins
+	nexts := make([]*Node, len(begins))
+	copy(nexts, begins)
 	finished := make([]*Node, 0)
 	steps := ""
 	for {
@@ -119,7 +142,6 @@ func main() {
 			break
 		}
 
-		// remove next node
 		sort.SliceStable(nexts, func(i, j int) bool {
 			return nexts[i].Name < nexts[j].Name
 		})
@@ -138,4 +160,53 @@ func main() {
 		steps += next.Name
 	}
 	fmt.Println(steps)
+
+	// Part 2
+	now := 0
+	workers := make([]int, 5) // Each int represents the time in the future when the work is available.
+	working := make([]*Node, 0)
+	nexts = make([]*Node, len(begins))
+	copy(nexts, begins)
+	finished = make([]*Node, 0)
+	for {
+		// stage to assign work for the moment
+		for {
+			if !WorkersAvailable(workers, now) {
+				break
+			}
+
+			sort.SliceStable(nexts, func(i, j int) bool {
+				return nexts[i].Name < nexts[j].Name
+			})
+			i := FindNextIdx(nexts, finished)
+			if i == -1 {
+				break  // when no work is needed
+			}
+
+			next := nexts[i]
+			nexts = append(nexts[:i], nexts[i+1:]...)
+			working = append(working, next)
+			next.FinishOn = now + next.Seconds
+			AssignWork(workers, now, now+next.Seconds)
+		}
+
+		// check work completion
+		sort.SliceStable(working, func(i, j int) bool {
+			return working[i].FinishOn < working[j].FinishOn
+		})
+		work := working[0]
+		working = working[1:]
+		for _, n := range work.Nexts {
+			if !Contains(n, finished) && !Contains(n, nexts) {
+				nexts = append(nexts, n)
+			}
+		}
+		finished = append(finished, work)
+		now = work.FinishOn
+
+		if len(nexts) == 0 {
+			break
+		}
+	}
+	fmt.Println(now)
 }
